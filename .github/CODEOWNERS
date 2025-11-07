@@ -1,0 +1,7 @@
+# DONT forget to enable branch protection so CODEOWNERS reviews will require before merging.
+
+# Default owners for all files
+* @aviz92
+
+# Backend
+/backend/* @aviz92
