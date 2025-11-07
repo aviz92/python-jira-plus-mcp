@@ -1,5 +1,5 @@
 # 🧱 Python Jira Plus MCP Service
-This repository contains the Python implementation of the Jira Plus MCP (Model Conttext Protocol) Service. <br>
+This repository contains the Python implementation of the Jira Plus MCP (Model Context Protocol) Service. <br>
 This service is designed to facilitate seamless integration between Jira and various MCP-compatible tools, enhancing project management capabilities.
 
 ---
