@@ -1,8 +1,9 @@
 from typing import Any
 
-from jira_plus_mcp.models import FieldMeta, IssueDetail, IssueSummary
+from jira_plus_mcp.models import AllowedValues, FieldMeta, IssueDetail, IssueSummary
 
 MAX_ALLOWED_VALUES = 50
+ALLOWED_VALUE_KEYS = ("id", "key", "name", "value")
 
 
 def _name(obj: dict[str, Any] | None, key: str = "name") -> str | None:
@@ -58,6 +59,17 @@ def format_fields_metadata(metadata: dict[str, Any]) -> list[FieldMeta]:
                 required=bool(meta.get("required")),
                 type=(meta.get("schema") or {}).get("type"),
                 allowed_values=[_allowed_value_label(v) for v in allowed[:MAX_ALLOWED_VALUES]] if allowed else None,
+                allowed_values_truncated=bool(allowed) and len(allowed) > MAX_ALLOWED_VALUES,
             )
         )
     return sorted(result, key=lambda f: (not f.required, f.name))
+
+
+def format_allowed_values(allowed: list[Any] | None) -> AllowedValues:
+    """Keep only the identifying keys of each value and flag when the list was cut."""
+    items = allowed or []
+    values = [
+        {k: v[k] for k in ALLOWED_VALUE_KEYS if k in v} if isinstance(v, dict) else {"value": v}
+        for v in items[:MAX_ALLOWED_VALUES]
+    ]
+    return AllowedValues(values=values, total=len(items), truncated=len(items) > MAX_ALLOWED_VALUES)

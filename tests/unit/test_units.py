@@ -46,3 +46,8 @@ def test_fields_metadata_required_first_and_trimmed() -> None:
     fields = format_fields_metadata(meta)
     assert [f.id for f in fields] == ["a", "b"]
     assert fields[0].allowed_values == ["x"]
+
+
+def test_http_host_and_port_default_to_loopback() -> None:
+    settings = Settings()
+    assert (settings.jira_mcp_host, settings.jira_mcp_port) == ("127.0.0.1", 8000)

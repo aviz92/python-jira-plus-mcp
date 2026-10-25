@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from mcp.server.fastmcp.exceptions import ToolError
 from python_jira_plus import JiraCloud, JiraOnPremise, UrlScheme
 from python_jira_plus.jira_base import JiraBase
 
@@ -13,7 +14,16 @@ def _split_scheme(base_url: str) -> tuple[str, UrlScheme]:
     return base_url.removeprefix("https://").rstrip("/"), UrlScheme.HTTPS
 
 
+def _check_required(settings: Settings) -> None:
+    required = {"JIRA_BASE_URL": settings.jira_base_url}
+    if not settings.jira_sso:
+        required |= {"JIRA_USER_NAME": settings.jira_user_name, "JIRA_TOKEN": settings.jira_token.get_secret_value()}
+    if missing := [name for name, value in required.items() if not value]:
+        raise ToolError(f"{', '.join(missing)} not set. Configure the server's environment and restart it")
+
+
 def build_client(settings: Settings) -> JiraBase:
+    _check_required(settings)
     host, scheme = _split_scheme(settings.jira_base_url)
     common = {
         "base_url": host,

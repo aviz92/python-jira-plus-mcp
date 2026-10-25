@@ -5,7 +5,7 @@ from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from jira_plus_mcp.client import get_client
-from jira_plus_mcp.errors import check_project_allowed, tool_errors, validate_issue_key
+from jira_plus_mcp.errors import check_project_allowed, reject_reserved_fields, tool_errors, validate_issue_key
 from jira_plus_mcp.models import Transition, WriteResult
 from jira_plus_mcp.settings import Settings
 from jira_plus_mcp.tools.read import project_of
@@ -58,6 +58,7 @@ def register_write_tools(mcp: FastMCP, settings: Settings) -> None:
         """Create an issue. `assignee` is an accountId on Cloud (see jira_find_user).
         Use jira_get_create_fields first."""
         check_project_allowed(settings, project_key)
+        reject_reserved_fields(custom_fields)
         issue = get_client().create_issue(project_key, summary, description, issue_type, assignee, custom_fields)
         _require(issue is not None, "Issue was not created")
         return WriteResult(ok=True, message=f"Created {issue.key}", key=issue.key)
@@ -67,6 +68,7 @@ def register_write_tools(mcp: FastMCP, settings: Settings) -> None:
     def jira_update_issue(issue_key: str, fields_to_update: dict[str, Any]) -> WriteResult:
         """Update fields of an issue, e.g. {"summary": "new", "labels": ["a"]}."""
         issue_key = guard(issue_key)
+        reject_reserved_fields(fields_to_update)
         client = get_client()
         current = client.get_issue_by_key(issue_key, specific_fields=VALIDATION_FIELDS, json_result=True)
         _require(current is not None, f"Issue '{issue_key}' not found or not accessible")
@@ -96,27 +98,32 @@ def register_write_tools(mcp: FastMCP, settings: Settings) -> None:
         issue_key = guard(issue_key)
         client = get_client()
         available = [t["name"] for t in client.jira_client.transitions(issue_key)]
+        # the library matches names case-sensitively, so pass it the exact name Jira reported
+        match = next((n for n in available if n.lower() == transition_name.lower()), None)
         _require(
-            transition_name.lower() in {n.lower() for n in available},
+            match is not None,
             f"Transition '{transition_name}' not available for {issue_key}. Available: {', '.join(available)}",
         )
-        _require(
-            client.transition_issue(issue_key, transition_name, fields, comment),
-            f"Transition of {issue_key} failed",
-        )
-        return WriteResult(ok=True, message=f"{issue_key} -> {transition_name}", key=issue_key)
+        _require(client.transition_issue(issue_key, match, fields, comment), f"Transition of {issue_key} failed")
+        return WriteResult(ok=True, message=f"{issue_key} -> {match}", key=issue_key)
 
     @mcp.tool(name="jira_link_issues", annotations=WRITE)
     @tool_errors
     def jira_link_issues(inward_issue_key: str, outward_issue_key: str, link_type: str) -> WriteResult:
-        """Link two issues. `link_type` is a Jira link type name such as "Blocks" or "Relates"."""
+        """Link two issues. `inward_issue_key` gets the link type's `inward` wording and `outward_issue_key` its
+        `outward` wording; check jira_get_link_types for the direction. `link_type` is matched case-insensitively."""
         inward_issue_key = guard(inward_issue_key)
         outward_issue_key = guard(outward_issue_key)
+        client = get_client()
+        names = [t.name for t in client.jira_client.issue_link_types()]
+        # the library compares link type names case-sensitively, so pass it the exact name Jira reported
+        match = next((n for n in names if n.lower() == link_type.lower()), None)
+        _require(match is not None, f"Unknown link type '{link_type}'. Available: {', '.join(names)}")
         _require(
-            get_client().create_link(inward_issue_key, link_type, outward_issue_key),
+            client.create_link(inward_issue_key, match, outward_issue_key),
             f"Failed to link {inward_issue_key} and {outward_issue_key}",
         )
-        return WriteResult(ok=True, message=f"Linked {inward_issue_key} and {outward_issue_key} ({link_type})")
+        return WriteResult(ok=True, message=f"Linked {inward_issue_key} and {outward_issue_key} ({match})")
 
     if settings.jira_mcp_enable_delete:
 

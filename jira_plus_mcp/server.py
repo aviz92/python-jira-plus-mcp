@@ -6,6 +6,6 @@ from jira_plus_mcp.tools import register_tools
 
 def create_server(settings: Settings | None = None) -> FastMCP:
     settings = settings or get_settings()
-    mcp = FastMCP(name="jira-plus")
+    mcp = FastMCP(name="jira-plus", host=settings.jira_mcp_host, port=settings.jira_mcp_port)
     register_tools(mcp, settings)
     return mcp

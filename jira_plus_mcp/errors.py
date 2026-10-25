@@ -1,8 +1,9 @@
 import re
 from collections.abc import Callable
-from functools import wraps
+from functools import partial, wraps
 from typing import Any
 
+import anyio.to_thread
 from jira import JIRAError
 from mcp.server.fastmcp.exceptions import ToolError
 
@@ -17,6 +18,15 @@ def validate_issue_key(issue_key: str) -> str:
     if not ISSUE_KEY_RE.fullmatch(key):
         raise ToolError(f"Invalid issue key '{issue_key}'. Expected a key like PROJ-123")
     return key
+
+
+RESERVED_FIELDS = frozenset({"project", "issuetype"})
+
+
+def reject_reserved_fields(fields: dict[str, Any] | None) -> None:
+    """project and issuetype are set by dedicated arguments; letting a field dict override them skips the allowlist."""
+    if fields and (clash := RESERVED_FIELDS & {key.lower() for key in fields}):
+        raise ToolError(f"Fields {sorted(clash)} cannot be set here; use the dedicated arguments")
 
 
 def check_project_allowed(settings: Settings, project_key: str) -> None:
@@ -37,12 +47,16 @@ def to_tool_error(err: Exception) -> ToolError:
 
 
 def tool_errors(func: Callable[..., Any]) -> Callable[..., Any]:
-    """Convert any exception raised by a tool into a ToolError."""
+    """Run a blocking tool in a worker thread and convert any exception into a ToolError.
+
+    python-jira-plus is synchronous and may sleep between retries; FastMCP runs sync tools on the event loop,
+    which would stall every client of a streamable-http server.
+    """
 
     @wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
-            return func(*args, **kwargs)
+            return await anyio.to_thread.run_sync(partial(func, *args, **kwargs))
         except Exception as err:  # pylint: disable=broad-exception-caught
             raise to_tool_error(err) from err
 
