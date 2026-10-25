@@ -1,19 +1,12 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install uv for faster package management
 RUN pip install uv
 
-# Copy requirements file
-COPY requirements.txt .
+COPY pyproject.toml uv.lock README.md ./
+COPY jira_plus_mcp/ ./jira_plus_mcp/
+RUN uv sync --frozen --no-dev
 
-# Install dependencies using uv
-RUN uv venv
-RUN uv pip install -r requirements.txt
-
-# Copy application code
-COPY server.py .
-
-# Command to run the server
-CMD ["uv", "run", "server.py"]
+# stdio by default; set JIRA_MCP_TRANSPORT=streamable-http to serve over HTTP
+CMD ["uv", "run", "--no-sync", "python-jira-plus-mcp"]
