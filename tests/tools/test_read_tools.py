@@ -7,7 +7,7 @@ from python_jira_plus import BASIC_FIELDS
 
 from jira_plus_mcp.server import create_server
 from jira_plus_mcp.settings import Deployment, Settings
-from tests.tools.common import issue_in, make_settings
+from tests.tools.common import make_settings
 
 RAW = {"key": "PROJ-1", "fields": {"summary": "s", "status": {"name": "Open"}, "project": {"key": "PROJ"}}}
 
@@ -43,20 +43,6 @@ async def test_get_issue_library_error_becomes_tool_error(client: MagicMock) -> 
         await create_server(Settings()).call_tool("jira_get_issue", {"issue_key": "PROJ-9"})
 
 
-async def test_disallowed_project_rejected_before_request(jira: MagicMock) -> None:
-    server = create_server(make_settings(jira_mcp_allowed_projects="OK"))
-    with pytest.raises(ToolError, match="Project 'NO' is not allowed"):
-        await server.call_tool("jira_get_issue", {"issue_key": "NO-1"})
-    jira.issue.assert_not_called()
-
-
-async def test_get_issue_moved_to_disallowed_project_rejected(jira: MagicMock) -> None:
-    jira.issue.return_value = issue_in("SEC")
-    server = create_server(make_settings(jira_mcp_allowed_projects="PROJ"))
-    with pytest.raises(ToolError, match="Project 'SEC' is not allowed"):
-        await server.call_tool("jira_get_issue", {"issue_key": "PROJ-1"})
-
-
 async def test_invalid_issue_key_rejected_before_request(jira: MagicMock) -> None:
     with pytest.raises(ToolError, match="Invalid issue key"):
         await create_server(make_settings()).call_tool("jira_get_issue", {"issue_key": "PROJ-1/../myself"})
@@ -67,15 +53,6 @@ async def test_search_truncates_and_flags(client: MagicMock) -> None:
     client.get_objects_by_query.return_value = [RAW, RAW, RAW]
     _, result = await create_server(Settings()).call_tool("jira_search_issues", {"jql": "x", "limit": 2})
     assert (result["returned"], result["truncated"]) == (2, True)
-
-
-async def test_search_is_scoped_and_filtered_by_allowlist(jira: MagicMock) -> None:
-    other = {"key": "SEC-1", "fields": {"project": {"key": "SEC"}}}
-    jira.enhanced_search_issues.return_value = {"issues": [RAW, other], "isLast": True}
-    server = create_server(make_settings(jira_mcp_allowed_projects="PROJ"))
-    _, result = await server.call_tool("jira_search_issues", {"jql": "x) OR (project = SEC"})
-    assert jira.enhanced_search_issues.call_args.kwargs["jql_str"].startswith("project in (PROJ) AND (")
-    assert [i["key"] for i in result["issues"]] == ["PROJ-1"]
 
 
 async def test_search_limit_clamped_to_max_results(client: MagicMock) -> None:
@@ -120,13 +97,6 @@ async def test_get_create_fields_returns_structure_without_values(client: MagicM
         {"id": "a", "name": "A", "required": True, "type": "option", "has_allowed_values": True},
         {"id": "b", "name": "B", "required": False, "type": "string", "has_allowed_values": False},
     ]
-
-
-async def test_get_create_fields_disallowed_project(jira: MagicMock) -> None:
-    server = create_server(make_settings(jira_mcp_allowed_projects="OK"))
-    with pytest.raises(ToolError, match="Project 'NO' is not allowed"):
-        await server.call_tool("jira_get_create_fields", {"project_key": "NO", "issue_type": "Bug"})
-    jira.createmeta.assert_not_called()
 
 
 async def test_validation_error_passes_through(client: MagicMock) -> None:
@@ -177,12 +147,3 @@ async def test_get_link_types(client: MagicMock) -> None:
     client.get_link_types.return_value = [{"name": "Blocks", "inward": "is blocked by", "outward": "blocks"}]
     _, result = await create_server(Settings()).call_tool("jira_get_link_types", {})
     assert result["result"] == [{"name": "Blocks", "inward": "is blocked by", "outward": "blocks"}]
-
-
-async def test_each_server_gets_a_client_with_its_own_allowlist(jira: MagicMock) -> None:
-    jira.issue.return_value = issue_in("PROJ")
-    open_server = create_server(make_settings())
-    scoped_server = create_server(make_settings(jira_mcp_allowed_projects="OTHER"))
-    await open_server.call_tool("jira_get_issue", {"issue_key": "PROJ-1"})
-    with pytest.raises(ToolError, match="not allowed"):
-        await scoped_server.call_tool("jira_get_issue", {"issue_key": "PROJ-1"})

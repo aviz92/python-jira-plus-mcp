@@ -6,7 +6,7 @@ from mcp.server.fastmcp.exceptions import ToolError
 
 from jira_plus_mcp.server import create_server
 from jira_plus_mcp.settings import Settings
-from tests.tools.common import WRITABLE, issue_in, make_settings
+from tests.tools.common import WRITABLE, make_settings
 
 CREATE_ARGS = {"project_key": "OK", "summary": "s", "description": "d", "issue_type": "Bug"}
 
@@ -42,42 +42,11 @@ async def test_create_library_error_becomes_tool_error(client: MagicMock) -> Non
         await create_server(Settings(**WRITABLE)).call_tool("jira_create_issue", CREATE_ARGS)
 
 
-async def test_create_in_disallowed_project(jira: MagicMock) -> None:
-    server = create_server(make_settings(**WRITABLE, jira_mcp_allowed_projects="ALLOWED"))
-    with pytest.raises(ToolError, match="Project 'OK' is not allowed"):
-        await server.call_tool("jira_create_issue", CREATE_ARGS)
-    jira.create_issue.assert_not_called()
-
-
 async def test_create_rejects_project_override_in_custom_fields(jira: MagicMock) -> None:
     args = CREATE_ARGS | {"custom_fields": {"project": {"key": "OTHER"}}}
     with pytest.raises(ToolError, match="conflicts with the dedicated argument for 'project'"):
         await create_server(make_settings(**WRITABLE)).call_tool("jira_create_issue", args)
     jira.create_issue.assert_not_called()
-
-
-async def test_write_respects_allowlist(jira: MagicMock) -> None:
-    server = create_server(make_settings(**WRITABLE, jira_mcp_allowed_projects="OK"))
-    with pytest.raises(ToolError, match="Project 'NO' is not allowed"):
-        await server.call_tool("jira_add_comment", {"issue_key": "NO-1", "comment": "x"})
-    jira.add_comment.assert_not_called()
-
-
-async def test_moved_issue_blocked_by_current_project(jira: MagicMock) -> None:
-    jira.issue.return_value = issue_in("SEC")
-    server = create_server(make_settings(**WRITABLE, jira_mcp_allowed_projects="OK"))
-    with pytest.raises(ToolError, match="Project 'SEC' is not allowed"):
-        await server.call_tool("jira_add_comment", {"issue_key": "OK-1", "comment": "x"})
-    jira.add_comment.assert_not_called()
-
-
-async def test_link_checks_both_keys_against_allowlist(jira: MagicMock) -> None:
-    jira.issue.return_value = issue_in("OK")
-    server = create_server(make_settings(**WRITABLE, jira_mcp_allowed_projects="OK"))
-    args = {"inward_issue_key": "OK-1", "outward_issue_key": "NO-2", "link_type": "Blocks"}
-    with pytest.raises(ToolError, match="Project 'NO' is not allowed"):
-        await server.call_tool("jira_link_issues", args)
-    jira.create_issue_link.assert_not_called()
 
 
 @pytest.mark.parametrize("bad_key", ["../../rest/api/2/user", "P-1/../Q-2", "P-1?expand=x", "P 1", ""])

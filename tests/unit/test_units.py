@@ -29,10 +29,6 @@ def test_format_detail_with_no_fields() -> None:
     assert (detail.key, detail.status, detail.labels) == ("PROJ-2", None, [])
 
 
-def test_allowed_projects_parsed_from_csv() -> None:
-    assert Settings(jira_mcp_allowed_projects="proj1, PROJ2").jira_mcp_allowed_projects == ["PROJ1", "PROJ2"]
-
-
 def test_read_only_is_default() -> None:
     assert Settings().jira_mcp_read_only is True
 

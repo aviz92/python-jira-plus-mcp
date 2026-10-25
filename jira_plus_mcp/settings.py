@@ -1,9 +1,8 @@
 from enum import StrEnum
 from functools import lru_cache
-from typing import Annotated
 
-from pydantic import Field, SecretStr, field_validator
-from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+from pydantic import Field, SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEFAULT_MAX_RESULTS = 100
 
@@ -32,18 +31,10 @@ class Settings(BaseSettings):
 
     jira_mcp_read_only: bool = True
     jira_mcp_enable_delete: bool = False
-    jira_mcp_allowed_projects: Annotated[list[str], NoDecode] = Field(default_factory=list)
     jira_mcp_transport: Transport = Transport.STDIO
     jira_mcp_host: str = "127.0.0.1"
     jira_mcp_port: int = Field(default=8000, ge=1, le=65535)
     jira_mcp_max_results: int = Field(default=DEFAULT_MAX_RESULTS, ge=1)
-
-    @field_validator("jira_mcp_allowed_projects", mode="before")
-    @classmethod
-    def _split_projects(cls, value: object) -> object:
-        if isinstance(value, str):
-            return [p.strip().upper() for p in value.split(",") if p.strip()]
-        return value
 
 
 @lru_cache(maxsize=1)
