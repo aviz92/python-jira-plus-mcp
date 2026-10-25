@@ -6,7 +6,7 @@ from jira import JIRAError
 from mcp.server.fastmcp.exceptions import ToolError
 
 from jira_plus_mcp.__main__ import main
-from jira_plus_mcp.errors import reject_reserved_fields, to_tool_error, tool_errors, validate_issue_key
+from jira_plus_mcp.errors import to_tool_error, tool_errors, validate_issue_key
 from jira_plus_mcp.settings import Settings, Transport
 
 
@@ -55,10 +55,3 @@ async def test_tool_errors_runs_in_worker_thread() -> None:
         return threading.get_ident()
 
     assert await which_thread() != threading.get_ident()
-
-
-def test_reserved_fields_rejected_case_insensitively() -> None:
-    with pytest.raises(ToolError, match="IssueType|issuetype"):
-        reject_reserved_fields({"IssueType": {"name": "Bug"}, "summary": "x"})
-    reject_reserved_fields({"summary": "x"})
-    reject_reserved_fields(None)

@@ -11,7 +11,6 @@ from jira_plus_mcp.client import get_client
 from jira_plus_mcp.errors import check_project_allowed, tool_errors, validate_issue_key
 from jira_plus_mcp.formatters import format_allowed_values, format_detail, format_fields_metadata, format_summary
 from jira_plus_mcp.models import AllowedValues, FieldMeta, IssueDetail, LinkType, SearchResult
-from jira_plus_mcp.search import search_page
 from jira_plus_mcp.settings import Deployment, Settings
 
 READ_ONLY = ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=True)
@@ -59,11 +58,18 @@ def register_read_tools(mcp: FastMCP, settings: Settings) -> None:
     def jira_search_issues(jql: str, limit: int = DEFAULT_SEARCH_LIMIT) -> SearchResult:
         """Search issues with JQL. Returns compact summaries; `truncated` is true if more matched than `limit`."""
         limit = min(max(limit, 1), settings.jira_mcp_max_results)
-        page = search_page(settings, scope_jql(settings, jql), BASIC_FIELDS, limit)
-        visible = [raw for raw in page.issues if _in_allowed_project(settings, raw)]
+        # one extra issue tells us whether more matched than `limit`
+        raw_issues = get_client().get_objects_by_query(
+            scope_jql(settings, jql),
+            limit=limit + 1,
+            max_results=limit + 1,
+            specific_fields=BASIC_FIELDS,
+            json_result=True,
+        )
+        visible = [raw for raw in raw_issues if _in_allowed_project(settings, raw)]
         issues = [format_summary(raw) for raw in visible[:limit]]
-        # with an allowlist, hidden issues in the fetched page can make `truncated` slightly conservative
-        return SearchResult(issues=issues, returned=len(issues), truncated=page.has_more or len(visible) > limit)
+        # with an allowlist, issues hidden from the fetched batch can make `truncated` miss further matches
+        return SearchResult(issues=issues, returned=len(issues), truncated=len(visible) > limit)
 
     @mcp.tool(name="jira_get_create_fields", annotations=READ_ONLY)
     @tool_errors
@@ -83,10 +89,7 @@ def register_read_tools(mcp: FastMCP, settings: Settings) -> None:
     @tool_errors
     def jira_get_link_types() -> list[LinkType]:
         """List link types with their inward/outward wording. Use before jira_link_issues to get the direction right."""
-        return [
-            LinkType(name=t.name, inward=t.inward, outward=t.outward)
-            for t in get_client().jira_client.issue_link_types()
-        ]
+        return [LinkType(**link_type) for link_type in get_client().get_link_types()]
 
     if settings.jira_deployment is Deployment.CLOUD:
 

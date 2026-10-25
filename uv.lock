@@ -1190,7 +1190,7 @@ wheels = [
 
 [[package]]
 name = "python-jira-plus"
-version = "3.2.0"
+version = "4.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "custom-python-logger" },
@@ -1199,9 +1199,9 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c6/35/a1b912124e0645c3d7f6fdd6683533cb7e3592b4e3e8739c0e6ef258e1f4/python_jira_plus-3.2.0.tar.gz", hash = "sha256:ed9c9770cc834abc273ad15ed2e4cfdf53c79614786c3254846b6d85498a98b9", size = 13597, upload-time = "2026-06-10T02:35:25.407Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/88/bc/193de04b854a52ef14113e0194829f51f421ee52cc0a496fe4b64e70d075/python_jira_plus-4.0.0.tar.gz", hash = "sha256:1d91ecfbef52c92837a52149dd0db9dc17c2b201b8e5c62e57dbd55f3cd38d26", size = 22327, upload-time = "2026-10-25T17:31:06.239Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/27/d8/33655579624a1807e87e5a0efb774cc70a4c0b612333cd0abbc07753e713/python_jira_plus-3.2.0-py3-none-any.whl", hash = "sha256:6c6be70fb143b5cae45e817078c2b67422ce1b22361fbaf02b0d7d654da28e1f", size = 10914, upload-time = "2026-06-10T02:35:24.62Z" },
+    { url = "https://files.pythonhosted.org/packages/38/55/02a84017135654ac5edae1587bd00b84c315ba4bae6a5747951cbee18522/python_jira_plus-4.0.0-py3-none-any.whl", hash = "sha256:9ae8f86536d874f872a559c86d0af8b7b17c0f321d7b6260319e24d4e9733766", size = 13168, upload-time = "2026-10-25T17:31:05.364Z" },
 ]
 
 [[package]]
@@ -1209,7 +1209,7 @@ name = "python-jira-plus-mcp"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "custom-python-logger" },
+    { name = "anyio" },
     { name = "mcp" },
     { name = "pydantic-settings" },
     { name = "python-jira-plus" },
@@ -1225,10 +1225,10 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "custom-python-logger", specifier = ">=4.0.0" },
-    { name = "mcp", specifier = ">=1.2.0,<2" },
+    { name = "anyio", specifier = ">=4.5" },
+    { name = "mcp", specifier = ">=1.30,<2" },
     { name = "pydantic-settings", specifier = ">=2.13.1" },
-    { name = "python-jira-plus", specifier = ">=3.2.0,<4" },
+    { name = "python-jira-plus", specifier = ">=4,<5" },
 ]
 
 [package.metadata.requires-dev]

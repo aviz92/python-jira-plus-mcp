@@ -20,15 +20,6 @@ def validate_issue_key(issue_key: str) -> str:
     return key
 
 
-RESERVED_FIELDS = frozenset({"project", "issuetype"})
-
-
-def reject_reserved_fields(fields: dict[str, Any] | None) -> None:
-    """project and issuetype are set by dedicated arguments; letting a field dict override them skips the allowlist."""
-    if fields and (clash := RESERVED_FIELDS & {key.lower() for key in fields}):
-        raise ToolError(f"Fields {sorted(clash)} cannot be set here; use the dedicated arguments")
-
-
 def check_project_allowed(settings: Settings, project_key: str) -> None:
     allowed = settings.jira_mcp_allowed_projects
     if allowed and project_key.upper() not in allowed:
@@ -41,7 +32,7 @@ def to_tool_error(err: Exception) -> ToolError:
         return err
     if isinstance(err, JIRAError):
         return ToolError(f"Jira error {err.status_code}: {err.text or err}")
-    if isinstance(err, ValueError):  # raised by python-jira-plus validate_fields: "allowed values are ..."
+    if isinstance(err, ValueError):  # python-jira-plus validation, name lookups and missing credentials
         return ToolError(str(err))
     return ToolError(f"Unexpected error: {type(err).__name__}: {err}")
 

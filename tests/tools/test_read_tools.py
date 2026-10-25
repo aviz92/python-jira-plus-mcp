@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from mcp.server.fastmcp.exceptions import ToolError
+from python_jira_plus import BASIC_FIELDS, JiraCloud
 
 from jira_plus_mcp.server import create_server
 from jira_plus_mcp.settings import Deployment, Settings
@@ -13,10 +14,7 @@ RAW = {"key": "PROJ-1", "fields": {"summary": "s", "status": {"name": "Open"}, "
 @pytest.fixture(name="client")
 def client_fixture() -> Iterator[MagicMock]:
     client = MagicMock()
-    with (
-        patch("jira_plus_mcp.search.get_client", return_value=client),
-        patch("jira_plus_mcp.tools.read.get_client", return_value=client),
-    ):
+    with patch("jira_plus_mcp.tools.read.get_client", return_value=client):
         yield client
 
 
@@ -59,7 +57,7 @@ async def test_disallowed_project_rejected(client: MagicMock) -> None:
 
 
 async def test_search_truncates_and_flags(client: MagicMock) -> None:
-    client.jira_client.enhanced_search_issues.return_value = {"issues": [RAW, RAW, RAW]}
+    client.get_objects_by_query.return_value = [RAW, RAW, RAW]
     _, result = await create_server(Settings()).call_tool("jira_search_issues", {"jql": "x", "limit": 2})
     assert result["returned"] == 2
     assert result["truncated"] is True
@@ -75,7 +73,7 @@ async def test_validation_error_passes_through(client: MagicMock) -> None:
 
 async def test_search_post_filters_jql_escape(client: MagicMock) -> None:
     other = {"key": "SEC-1", "fields": {"project": {"key": "SEC"}}}
-    client.jira_client.enhanced_search_issues.return_value = {"issues": [RAW, other]}
+    client.get_objects_by_query.return_value = [RAW, other]
     server = create_server(Settings(jira_mcp_allowed_projects="PROJ"))
     _, result = await server.call_tool("jira_search_issues", {"jql": "x) OR (project = SEC"})
     assert [i["key"] for i in result["issues"]] == ["PROJ-1"]
@@ -125,33 +123,25 @@ async def test_find_user_returns_only_safe_fields(client: MagicMock) -> None:
 
 
 async def test_search_applies_allowlist_to_jql(client: MagicMock) -> None:
-    client.jira_client.enhanced_search_issues.return_value = {"issues": []}
+    client.get_objects_by_query.return_value = []
     server = create_server(Settings(jira_mcp_allowed_projects="A"))
     await server.call_tool("jira_search_issues", {"jql": "status = Open"})
-    assert client.jira_client.enhanced_search_issues.call_args.kwargs["jql_str"] == "project in (A) AND (status = Open)"
+    assert client.get_objects_by_query.call_args.args[0] == "project in (A) AND (status = Open)"
 
 
 async def test_search_limit_clamped_to_max_results(client: MagicMock) -> None:
-    client.jira_client.enhanced_search_issues.return_value = {"issues": []}
+    client.get_objects_by_query.return_value = []
     await create_server(Settings(jira_mcp_max_results=5)).call_tool("jira_search_issues", {"jql": "x", "limit": 999})
-    assert client.jira_client.enhanced_search_issues.call_args.kwargs["maxResults"] == 6
+    assert client.get_objects_by_query.call_args.kwargs["limit"] == 6
 
 
-async def test_search_fetches_one_page_of_limit_plus_one(client: MagicMock) -> None:
-    client.jira_client.enhanced_search_issues.return_value = {"issues": [RAW]}
-    await create_server(Settings()).call_tool("jira_search_issues", {"jql": "x", "limit": 20})
-    client.jira_client.enhanced_search_issues.assert_called_once()
-    assert client.jira_client.enhanced_search_issues.call_args.kwargs["maxResults"] == 21
-    client.get_objects_by_query.assert_not_called()
-
-
-async def test_search_on_premise_uses_search_issues_and_reports_truncation(client: MagicMock) -> None:
-    client.jira_client.search_issues.return_value = {"issues": [RAW, RAW, RAW]}
-    server = create_server(Settings(jira_deployment=Deployment.ON_PREMISE))
-    _, result = await server.call_tool("jira_search_issues", {"jql": "x", "limit": 2})
-    assert client.jira_client.search_issues.call_args.kwargs["maxResults"] == 3
-    assert result["returned"] == 2
-    assert result["truncated"] is True
+async def test_search_asks_library_for_limit_plus_one(client: MagicMock) -> None:
+    client.get_objects_by_query.return_value = [RAW]
+    _, result = await create_server(Settings()).call_tool("jira_search_issues", {"jql": "x", "limit": 20})
+    client.get_objects_by_query.assert_called_once_with(
+        "x", limit=21, max_results=21, specific_fields=BASIC_FIELDS, json_result=True
+    )
+    assert (result["returned"], result["truncated"]) == (1, False)
 
 
 async def test_allowed_values_trimmed_and_flagged_when_cut(client: MagicMock) -> None:
@@ -166,27 +156,23 @@ async def test_allowed_values_trimmed_and_flagged_when_cut(client: MagicMock) ->
 
 
 async def test_get_link_types(client: MagicMock) -> None:
-    link = MagicMock(inward="is blocked by", outward="blocks")
-    link.name = "Blocks"
-    client.jira_client.issue_link_types.return_value = [link]
+    client.get_link_types.return_value = [{"name": "Blocks", "inward": "is blocked by", "outward": "blocks"}]
     _, result = await create_server(Settings()).call_tool("jira_get_link_types", {})
     assert result["result"] == [{"name": "Blocks", "inward": "is blocked by", "outward": "blocks"}]
 
 
-async def test_cloud_short_page_not_last_is_truncated(client: MagicMock) -> None:
-    client.jira_client.enhanced_search_issues.return_value = {"issues": [RAW] * 10, "isLast": False}
-    _, result = await create_server(Settings()).call_tool("jira_search_issues", {"jql": "x", "limit": 20})
-    assert (result["returned"], result["truncated"]) == (10, True)
+async def test_cloud_short_pages_not_last_still_truncated(real_client: JiraCloud) -> None:
+    real_client.jira_client.enhanced_search_issues.side_effect = [
+        {"issues": [RAW] * 10, "isLast": False, "nextPageToken": "a"},
+        {"issues": [RAW] * 11, "isLast": False, "nextPageToken": "b"},
+    ]
+    with patch("jira_plus_mcp.tools.read.get_client", return_value=real_client):
+        _, result = await create_server(Settings()).call_tool("jira_search_issues", {"jql": "x", "limit": 20})
+    assert (result["returned"], result["truncated"]) == (20, True)
 
 
-async def test_cloud_last_page_not_truncated(client: MagicMock) -> None:
-    client.jira_client.enhanced_search_issues.return_value = {"issues": [RAW], "isLast": True}
-    _, result = await create_server(Settings()).call_tool("jira_search_issues", {"jql": "x"})
-    assert result["truncated"] is False
-
-
-async def test_on_prem_total_drives_truncated(client: MagicMock) -> None:
-    client.jira_client.search_issues.return_value = {"issues": [RAW] * 5, "total": 500}
-    server = create_server(Settings(jira_deployment=Deployment.ON_PREMISE))
-    _, result = await server.call_tool("jira_search_issues", {"jql": "x", "limit": 20})
-    assert (result["returned"], result["truncated"]) == (5, True)
+async def test_cloud_last_page_not_truncated(real_client: JiraCloud) -> None:
+    real_client.jira_client.enhanced_search_issues.return_value = {"issues": [RAW], "isLast": True}
+    with patch("jira_plus_mcp.tools.read.get_client", return_value=real_client):
+        _, result = await create_server(Settings()).call_tool("jira_search_issues", {"jql": "x"})
+    assert (result["returned"], result["truncated"]) == (1, False)

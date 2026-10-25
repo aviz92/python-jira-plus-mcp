@@ -2,11 +2,25 @@
 
 MCP server for Jira (Cloud and Data Center), built on [python-jira-plus](https://github.com/aviz92/python-jira-plus).
 
-## Run
+## Requirements
+
+- Python 3.12+
+- [python-jira-plus](https://pypi.org/project/python-jira-plus/) 4.x (installed automatically; 3.x is not supported)
+
+## Install and run
+
+With [uv](https://docs.astral.sh/uv/), `uvx` fetches the package into an isolated environment and runs it, no separate install step:
 
 ```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh   # once, if uv is not installed
+
+JIRA_BASE_URL=https://instance.atlassian.net \
+JIRA_USER_NAME=you@example.com \
+JIRA_TOKEN=... \
 uvx python-jira-plus-mcp
 ```
+
+`JIRA_BASE_URL` may include the scheme (`https://` is assumed when it doesn't).
 
 Configure through environment variables (see `env.template`). The server is **read-only by default**:
 write tools are not registered unless `JIRA_MCP_READ_ONLY=false`.

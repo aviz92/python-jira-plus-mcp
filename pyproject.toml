@@ -19,10 +19,10 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "mcp>=1.2.0,<2",
-    "python-jira-plus>=3.2.0,<4",
+    "mcp>=1.30,<2",
+    "python-jira-plus>=4,<5",
     "pydantic-settings>=2.13.1",
-    "custom-python-logger>=4.0.0",
+    "anyio>=4.5",
 ]
 
 [dependency-groups]
