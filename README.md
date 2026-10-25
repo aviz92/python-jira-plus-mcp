@@ -42,6 +42,6 @@ With `JIRA_MCP_ENABLE_DELETE=true` as well: `jira_delete_issue`.
 ## Development
 
 ```bash
-uv sync --extra dev
+uv sync --group dev
 uv run pytest
 ```
