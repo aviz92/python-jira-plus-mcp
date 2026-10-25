@@ -1,5 +1,3 @@
-from typing import Any
-
 from pydantic import BaseModel
 
 
@@ -34,8 +32,7 @@ class FieldMeta(BaseModel):
     name: str
     required: bool
     type: str | None = None
-    allowed_values: list[str] | None = None
-    allowed_values_truncated: bool = False
+    has_allowed_values: bool = False
 
 
 class Transition(BaseModel):
@@ -47,12 +44,6 @@ class WriteResult(BaseModel):
     ok: bool
     message: str
     key: str | None = None
-
-
-class AllowedValues(BaseModel):
-    values: list[dict[str, Any]]
-    total: int
-    truncated: bool
 
 
 class LinkType(BaseModel):

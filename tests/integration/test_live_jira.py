@@ -78,7 +78,7 @@ async def test_allowed_values_for_priority_or_clear_error(server: FastMCP, issue
     project = issue["key"].rsplit("-", 1)[0]
     args = {"project_key": project, "issue_type": issue["issue_type"], "field_id_or_name": "priority"}
     try:
-        values = (await call(server, "jira_get_allowed_values", args))["values"]
+        values = (await call(server, "jira_get_allowed_values", args))["result"]
     except ToolError as err:
         assert "priority" in str(err).lower()
     else:

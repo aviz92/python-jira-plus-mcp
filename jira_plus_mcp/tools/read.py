@@ -9,8 +9,8 @@ from python_jira_plus.jira_cloud import JiraCloud
 
 from jira_plus_mcp.allowlist import check_key_prefix, check_project_allowed, in_allowed_project, project_of, scope_jql
 from jira_plus_mcp.errors import tool_errors
-from jira_plus_mcp.formatters import cap_create_fields, format_allowed_values, format_detail, format_summary
-from jira_plus_mcp.models import AllowedValues, FieldMeta, IssueDetail, LinkType, SearchResult
+from jira_plus_mcp.formatters import format_allowed_values, format_detail, format_summary
+from jira_plus_mcp.models import FieldMeta, IssueDetail, LinkType, SearchResult
 from jira_plus_mcp.settings import Deployment, Settings
 
 READ_ONLY = ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=True)
@@ -48,14 +48,20 @@ def register_read_tools(mcp: FastMCP, settings: Settings, get_client: Callable[[
     @mcp.tool(name="jira_get_create_fields", annotations=READ_ONLY)
     @tool_errors
     def jira_get_create_fields(project_key: str, issue_type: str) -> list[FieldMeta]:
-        """List fields for creating an issue (required first, with allowed values). Call before jira_create_issue."""
+        """List the fields for creating an issue, required first. Call before jira_create_issue.
+
+        For a field with `has_allowed_values`, get its values with jira_get_allowed_values.
+        """
         check_project_allowed(settings, project_key)
-        return cap_create_fields(get_client().get_create_fields(project_key, issue_type))
+        return [
+            FieldMeta(**field, has_allowed_values=bool(field["allowed_values"]))
+            for field in get_client().get_create_fields(project_key, issue_type)
+        ]
 
     @mcp.tool(name="jira_get_allowed_values", annotations=READ_ONLY)
     @tool_errors
-    def jira_get_allowed_values(project_key: str, issue_type: str, field_id_or_name: str) -> AllowedValues:
-        """Get the allowed values of one field for a project and issue type (`truncated` if the list was cut)."""
+    def jira_get_allowed_values(project_key: str, issue_type: str, field_id_or_name: str) -> list[dict[str, Any]]:
+        """Get all allowed values of one field for a project and issue type."""
         check_project_allowed(settings, project_key)
         return format_allowed_values(get_client().get_allowed_values(project_key, issue_type, field_id_or_name))
 

@@ -108,7 +108,7 @@ async def test_cloud_last_page_not_truncated(jira: MagicMock) -> None:
     assert (result["returned"], result["truncated"]) == (1, False)
 
 
-async def test_get_create_fields_caps_allowed_values(client: MagicMock) -> None:
+async def test_get_create_fields_returns_structure_without_values(client: MagicMock) -> None:
     client.get_create_fields.return_value = [
         {"id": "a", "name": "A", "required": True, "type": "option", "allowed_values": [f"v{i}" for i in range(60)]},
         {"id": "b", "name": "B", "required": False, "type": "string", "allowed_values": None},
@@ -116,9 +116,10 @@ async def test_get_create_fields_caps_allowed_values(client: MagicMock) -> None:
     _, result = await create_server(Settings()).call_tool(
         "jira_get_create_fields", {"project_key": "P", "issue_type": "Bug"}
     )
-    first, second = result["result"]
-    assert (len(first["allowed_values"]), first["allowed_values_truncated"]) == (50, True)
-    assert (second["allowed_values"], second["allowed_values_truncated"]) == (None, False)
+    assert result["result"] == [
+        {"id": "a", "name": "A", "required": True, "type": "option", "has_allowed_values": True},
+        {"id": "b", "name": "B", "required": False, "type": "string", "has_allowed_values": False},
+    ]
 
 
 async def test_get_create_fields_disallowed_project(jira: MagicMock) -> None:
@@ -141,7 +142,7 @@ async def test_get_allowed_values_returns_values(client: MagicMock) -> None:
     _, result = await create_server(Settings()).call_tool(
         "jira_get_allowed_values", {"project_key": "P", "issue_type": "Bug", "field_id_or_name": "priority"}
     )
-    assert result == {"values": [{"name": "High"}], "total": 1, "truncated": False}
+    assert result["result"] == [{"name": "High"}]
 
 
 async def test_get_allowed_values_none_becomes_empty_list(client: MagicMock) -> None:
@@ -149,18 +150,18 @@ async def test_get_allowed_values_none_becomes_empty_list(client: MagicMock) -> 
     _, result = await create_server(Settings()).call_tool(
         "jira_get_allowed_values", {"project_key": "P", "issue_type": "Bug", "field_id_or_name": "summary"}
     )
-    assert result == {"values": [], "total": 0, "truncated": False}
+    assert result["result"] == []
 
 
-async def test_allowed_values_trimmed_and_flagged_when_cut(client: MagicMock) -> None:
+async def test_allowed_values_returns_all_values_without_noise(client: MagicMock) -> None:
     client.get_allowed_values.return_value = [
-        {"id": str(i), "name": f"v{i}", "self": "http://noise"} for i in range(60)
+        {"id": str(i), "name": f"v{i}", "self": "http://noise", "iconUrl": "http://icon"} for i in range(60)
     ]
     _, result = await create_server(Settings()).call_tool(
         "jira_get_allowed_values", {"project_key": "P", "issue_type": "Bug", "field_id_or_name": "x"}
     )
-    assert (result["total"], len(result["values"]), result["truncated"]) == (60, 50, True)
-    assert "self" not in result["values"][0]
+    assert len(result["result"]) == 60
+    assert result["result"][59] == {"id": "59", "name": "v59"}
 
 
 async def test_find_user_returns_only_safe_fields(client: MagicMock) -> None:

@@ -1,4 +1,4 @@
-from jira_plus_mcp.formatters import MAX_ALLOWED_VALUES, cap_create_fields, format_detail, format_summary
+from jira_plus_mcp.formatters import format_allowed_values, format_detail, format_summary
 from jira_plus_mcp.settings import Settings
 
 RAW = {
@@ -42,20 +42,12 @@ def test_http_host_and_port_default_to_loopback() -> None:
     assert (settings.jira_mcp_host, settings.jira_mcp_port) == ("127.0.0.1", 8000)
 
 
-def test_cap_create_fields_keeps_library_fields_and_order() -> None:
-    fields = cap_create_fields(
-        [
-            {"id": "a", "name": "A", "required": True, "type": "option", "allowed_values": ["x"]},
-            {"id": "b", "name": "B", "required": False, "type": None, "allowed_values": None},
-        ]
-    )
-    assert [(f.id, f.required, f.allowed_values, f.allowed_values_truncated) for f in fields] == [
-        ("a", True, ["x"], False),
-        ("b", False, None, False),
+def test_format_allowed_values_keeps_identifying_keys() -> None:
+    assert format_allowed_values([{"id": "1", "value": "High", "self": "http://x"}, "plain"]) == [
+        {"id": "1", "value": "High"},
+        {"value": "plain"},
     ]
 
 
-def test_cap_create_fields_cuts_long_lists() -> None:
-    values = [str(i) for i in range(MAX_ALLOWED_VALUES + 1)]
-    field = cap_create_fields([{"id": "a", "name": "A", "required": True, "type": None, "allowed_values": values}])[0]
-    assert (len(field.allowed_values), field.allowed_values_truncated) == (MAX_ALLOWED_VALUES, True)
+def test_format_allowed_values_none_is_empty() -> None:
+    assert format_allowed_values(None) == []
