@@ -30,13 +30,7 @@ def server_fixture() -> FastMCP:
         pytest.skip("JIRA_BASE_URL / JIRA_TOKEN not set")
     if missing := [name for name in REQUIRED_ENV if not os.getenv(name)]:
         pytest.skip(f"{', '.join(missing)} not set")
-    sandbox = settings.model_copy(
-        update={
-            "jira_mcp_read_only": False,
-            "jira_mcp_enable_delete": True,
-            "jira_mcp_allowed_projects": [os.environ["JIRA_MCP_TEST_PROJECT"].upper()],
-        }
-    )
+    sandbox = settings.model_copy(update={"jira_mcp_read_only": False, "jira_mcp_enable_delete": True})
     return create_server(sandbox)
 
 

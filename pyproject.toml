@@ -20,7 +20,7 @@ classifiers = [
 ]
 dependencies = [
     "mcp>=1.30,<2",
-    "python-jira-plus>=4,<5",
+    "python-jira-plus>=4.1,<5",
     "pydantic-settings>=2.13.1",
     "anyio>=4.5",
 ]

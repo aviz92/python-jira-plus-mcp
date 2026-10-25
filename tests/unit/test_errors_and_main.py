@@ -6,7 +6,7 @@ from jira import JIRAError
 from mcp.server.fastmcp.exceptions import ToolError
 
 from jira_plus_mcp.__main__ import main
-from jira_plus_mcp.errors import to_tool_error, tool_errors, validate_issue_key
+from jira_plus_mcp.errors import to_tool_error, tool_errors
 from jira_plus_mcp.settings import Settings, Transport
 
 
@@ -34,8 +34,9 @@ async def test_tool_errors_wraps_exceptions() -> None:
         await boom()
 
 
-def test_validate_issue_key_normalises_case_and_whitespace() -> None:
-    assert validate_issue_key(" proj-12 ") == "PROJ-12"
+def test_invalid_issue_key_from_library_keeps_message() -> None:
+    err = to_tool_error(ValueError("Invalid issue key 'P-1/../x'. Expected a key like PROJ-123 or a numeric id"))
+    assert str(err).startswith("Invalid issue key 'P-1/../x'")
 
 
 @pytest.mark.parametrize("transport", list(Transport))

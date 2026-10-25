@@ -5,7 +5,7 @@ MCP server for Jira (Cloud and Data Center), built on [python-jira-plus](https:/
 ## Requirements
 
 - Python 3.12+
-- [python-jira-plus](https://pypi.org/project/python-jira-plus/) 4.x (installed automatically; 3.x is not supported)
+- [python-jira-plus](https://pypi.org/project/python-jira-plus/) 4.1+ (installed automatically)
 
 ## Install and run
 
@@ -52,6 +52,12 @@ With `JIRA_MCP_READ_ONLY=false`: `jira_get_transitions`, `jira_create_issue`, `j
 With `JIRA_MCP_ENABLE_DELETE=true` as well: `jira_delete_issue`.
 
 `upload_attachment` is not exposed: a local file path means nothing across the MCP boundary.
+
+## Access
+
+The server can do whatever the configured token's Jira user can do. To limit which projects the model can
+reach, give it a dedicated Jira user whose permissions cover only those projects; Jira then enforces it on
+every request.
 
 ## HTTP transport (experimental)
 

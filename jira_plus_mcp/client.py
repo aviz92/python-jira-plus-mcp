@@ -1,9 +1,10 @@
-from functools import lru_cache
+from collections.abc import Callable
+from functools import cache
 
 from python_jira_plus import JiraCloud, JiraOnPremise
 from python_jira_plus.jira_base import JiraBase
 
-from jira_plus_mcp.settings import Deployment, Settings, get_settings
+from jira_plus_mcp.settings import Deployment, Settings
 
 
 def build_client(settings: Settings) -> JiraBase:
@@ -20,7 +21,14 @@ def build_client(settings: Settings) -> JiraBase:
     return JiraOnPremise(sso=settings.jira_sso, **common)
 
 
-@lru_cache(maxsize=1)
-def get_client() -> JiraBase:
-    """Connect on first tool call, not at server start, so a bad credential doesn't kill the server."""
-    return build_client(get_settings())
+def client_factory(settings: Settings) -> Callable[[], JiraBase]:
+    """A per-server client, bound to that server's settings.
+
+    It connects on the first tool call, not at server start, so a bad credential doesn't kill the server.
+    """
+
+    @cache
+    def get_client() -> JiraBase:
+        return build_client(settings)
+
+    return get_client

@@ -1,7 +1,7 @@
 """Read-only checks against a real Jira. Run with: uv run pytest -m integration
 
 Needs JIRA_BASE_URL, JIRA_USER_NAME, JIRA_TOKEN (and JIRA_DEPLOYMENT / JIRA_SSO as usual), from env or .env.
-Optional: JIRA_MCP_ALLOWED_PROJECTS narrows the search. Nothing here writes to Jira.
+Nothing here writes to Jira.
 """
 
 from typing import Any
@@ -78,7 +78,7 @@ async def test_allowed_values_for_priority_or_clear_error(server: FastMCP, issue
     project = issue["key"].rsplit("-", 1)[0]
     args = {"project_key": project, "issue_type": issue["issue_type"], "field_id_or_name": "priority"}
     try:
-        values = (await call(server, "jira_get_allowed_values", args))["values"]
+        values = (await call(server, "jira_get_allowed_values", args))["result"]
     except ToolError as err:
         assert "priority" in str(err).lower()
     else:
@@ -90,9 +90,3 @@ async def test_find_user_cloud_only(settings: Settings, server: FastMCP) -> None
         pytest.skip("jira_find_user is Cloud only")
     result = await call(server, "jira_find_user", {"query": settings.jira_user_name})
     assert any("accountId" in user for user in result["result"])
-
-
-async def test_allowlist_blocks_other_project(settings: Settings, issue: dict[str, Any]) -> None:
-    scoped = create_server(settings.model_copy(update={"jira_mcp_allowed_projects": ["NOPE"]}))
-    with pytest.raises(ToolError, match="not allowed"):
-        await call(scoped, "jira_get_issue", {"issue_key": issue["key"]})

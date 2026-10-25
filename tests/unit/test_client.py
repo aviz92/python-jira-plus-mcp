@@ -5,7 +5,7 @@ import pytest
 from mcp.server.fastmcp.exceptions import ToolError
 from pydantic import SecretStr
 
-from jira_plus_mcp.client import build_client, get_client
+from jira_plus_mcp.client import build_client, client_factory
 from jira_plus_mcp.server import create_server
 from jira_plus_mcp.settings import Deployment, Settings
 
@@ -20,16 +20,13 @@ def isolated_env_fixture(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """The library falls back to env vars and .env for empty arguments; keep real credentials out of these tests."""
     for name in ("JIRA_BASE_URL", "JIRA_USER_NAME", "JIRA_TOKEN"):
         monkeypatch.delenv(name, raising=False)
-    get_client.cache_clear()
     with patch("python_jira_plus.jira_base.load_dotenv"):
         yield
-    get_client.cache_clear()
 
 
 async def call_with(settings: Settings) -> None:
     """Build the client inside a tool call, where its ValueError becomes a ToolError."""
-    with patch("jira_plus_mcp.client.get_settings", return_value=settings):
-        await create_server(settings).call_tool("jira_get_issue", {"issue_key": "P-1"})
+    await create_server(settings).call_tool("jira_get_issue", {"issue_key": "P-1"})
 
 
 def test_build_client_cloud() -> None:
@@ -45,9 +42,15 @@ def test_build_client_on_premise_passes_sso_ssl_and_raise_on_error() -> None:
     with patch("jira_plus_mcp.client.JiraOnPremise") as on_prem:
         build_client(settings)
     kwargs = on_prem.call_args.kwargs
-    assert kwargs["sso"] is True
-    assert kwargs["verify_ssl"] is False
-    assert kwargs["raise_on_error"] is True
+    assert (kwargs["sso"], kwargs["verify_ssl"], kwargs["raise_on_error"]) == (True, False, True)
+
+
+def test_client_factory_connects_once_and_lazily() -> None:
+    with patch("jira_plus_mcp.client.build_client") as build:
+        get_client = client_factory(make_settings())
+        build.assert_not_called()
+        assert get_client() is get_client()
+    build.assert_called_once()
 
 
 @pytest.mark.usefixtures("isolated_env")
