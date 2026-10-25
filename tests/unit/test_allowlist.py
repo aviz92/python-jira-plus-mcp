@@ -47,3 +47,11 @@ def test_guard_issue_checks_current_project_of_an_id() -> None:
     with pytest.raises(ToolError, match="Project 'SECRET' is not allowed"):
         guard_issue(SCOPED, client, "10001")
     client.get_issue_by_key.assert_called_once_with("10001", specific_fields=["project"])
+
+
+def test_guard_issue_checks_every_key() -> None:
+    client = MagicMock()
+    client.get_issue_by_key.return_value = {"fields": {"project": {"key": "A"}}}
+    with pytest.raises(ToolError, match="Project 'C' is not allowed"):
+        guard_issue(SCOPED, client, "A-1", "C-2")
+    client.get_issue_by_key.assert_called_once_with("A-1", specific_fields=["project"])

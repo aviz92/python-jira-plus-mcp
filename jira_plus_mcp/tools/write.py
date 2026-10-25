@@ -25,17 +25,12 @@ def comment_after_transition(client: JiraBase, issue_key: str, comment: str | No
     return ""
 
 
-def guarded_client(settings: Settings, get_client: Callable[[], JiraBase], *issue_keys: str) -> JiraBase:
-    """The client, after checking every issue it will act on against the allowlist."""
-    client = get_client()
-    for issue_key in issue_keys:
-        guard_issue(settings, client, issue_key)
-    return client
-
-
 def register_write_tools(mcp: FastMCP, settings: Settings, get_client: Callable[[], JiraBase]) -> None:
     def guarded(*issue_keys: str) -> JiraBase:
-        return guarded_client(settings, get_client, *issue_keys)
+        """The client, after checking every issue it will act on against the allowlist."""
+        client = get_client()
+        guard_issue(settings, client, *issue_keys)
+        return client
 
     @mcp.tool(name="jira_get_transitions", annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True))
     @tool_errors

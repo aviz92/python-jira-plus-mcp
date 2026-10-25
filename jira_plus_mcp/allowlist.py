@@ -45,13 +45,14 @@ def scope_jql(settings: Settings, jql: str) -> str:
     return f"{scoped} ORDER BY {parts[1].strip()}" if len(parts) > 1 else scoped
 
 
-def guard_issue(settings: Settings, client: JiraBase, issue_key: str) -> None:
-    """Check an issue is in an allowed project before acting on it.
+def guard_issue(settings: Settings, client: JiraBase, *issue_keys: str) -> None:
+    """Check every issue is in an allowed project before acting on it.
 
     A moved issue keeps resolving under its old key, and an id has no prefix,
-    so with an allowlist the issue's current project is fetched and checked too.
+    so with an allowlist each issue's current project is fetched and checked too.
     """
     if not settings.jira_mcp_allowed_projects:
         return
-    check_key_prefix(settings, issue_key)
-    check_project_allowed(settings, project_of(client.get_issue_by_key(issue_key, specific_fields=["project"])))
+    for issue_key in issue_keys:
+        check_key_prefix(settings, issue_key)
+        check_project_allowed(settings, project_of(client.get_issue_by_key(issue_key, specific_fields=["project"])))
