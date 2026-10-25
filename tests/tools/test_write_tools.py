@@ -129,7 +129,7 @@ async def test_transition_name_is_case_insensitive(client: MagicMock) -> None:
     await create_server(Settings(**WRITABLE)).call_tool(
         "jira_transition_issue", {"issue_key": "P-1", "transition_name": "done", "comment": "c"}
     )
-    client.transition_issue.assert_called_once_with("P-1", "done", None, "c")
+    client.transition_issue.assert_called_once_with("P-1", "Done", None, "c")  # exact Jira name, not "done"
 
 
 async def test_transition_library_false_becomes_error(client: MagicMock) -> None:

@@ -96,15 +96,14 @@ def register_write_tools(mcp: FastMCP, settings: Settings) -> None:
         issue_key = guard(issue_key)
         client = get_client()
         available = [t["name"] for t in client.jira_client.transitions(issue_key)]
+        # the library matches names case-sensitively, so pass it the exact name Jira reported
+        match = next((n for n in available if n.lower() == transition_name.lower()), None)
         _require(
-            transition_name.lower() in {n.lower() for n in available},
+            match is not None,
             f"Transition '{transition_name}' not available for {issue_key}. Available: {', '.join(available)}",
         )
-        _require(
-            client.transition_issue(issue_key, transition_name, fields, comment),
-            f"Transition of {issue_key} failed",
-        )
-        return WriteResult(ok=True, message=f"{issue_key} -> {transition_name}", key=issue_key)
+        _require(client.transition_issue(issue_key, match, fields, comment), f"Transition of {issue_key} failed")
+        return WriteResult(ok=True, message=f"{issue_key} -> {match}", key=issue_key)
 
     @mcp.tool(name="jira_link_issues", annotations=WRITE)
     @tool_errors
