@@ -1215,7 +1215,7 @@ dependencies = [
     { name = "python-jira-plus" },
 ]
 
-[package.optional-dependencies]
+[package.dev-dependencies]
 dev = [
     { name = "pre-commit" },
     { name = "pytest" },
@@ -1227,14 +1227,17 @@ dev = [
 requires-dist = [
     { name = "custom-python-logger", specifier = ">=4.0.0" },
     { name = "mcp", specifier = ">=1.2.0,<2" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.5.0" },
     { name = "pydantic-settings", specifier = ">=2.13.1" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.2" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.24.0" },
-    { name = "python-base-toolkit", marker = "extra == 'dev'", specifier = ">=1.1.2" },
     { name = "python-jira-plus", specifier = ">=3.2.0,<4" },
 ]
-provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pre-commit", specifier = ">=4.5.0" },
+    { name = "pytest", specifier = ">=9.0.2" },
+    { name = "pytest-asyncio", specifier = ">=0.24.0" },
+    { name = "python-base-toolkit", specifier = ">=1.1.2" },
+]
 
 [[package]]
 name = "python-multipart"

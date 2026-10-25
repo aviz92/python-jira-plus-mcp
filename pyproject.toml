@@ -43,9 +43,3 @@ Issues = "https://github.com/aviz92/python-jira-plus-mcp/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["jira_plus_mcp"]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-asyncio_mode = "auto"
-markers = ["integration: needs a real Jira instance (JIRA_* env vars)"]
-addopts = "-m 'not integration'"
