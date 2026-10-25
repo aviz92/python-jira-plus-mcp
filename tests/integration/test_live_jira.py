@@ -96,4 +96,3 @@ async def test_allowlist_blocks_other_project(settings: Settings, issue: dict[st
     scoped = create_server(settings.model_copy(update={"jira_mcp_allowed_projects": ["NOPE"]}))
     with pytest.raises(ToolError, match="not allowed"):
         await call(scoped, "jira_get_issue", {"issue_key": issue["key"]})
-
