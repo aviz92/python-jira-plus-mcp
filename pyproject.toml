@@ -1,0 +1,51 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "python-jira-plus-mcp"
+version = "0.1.0"
+description = "MCP server exposing Jira (Cloud and Data Center) to LLM clients, built on python-jira-plus."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.12"
+authors = [{ name = "Avi Zaguri" }]
+keywords = ["mcp", "jira", "atlassian", "llm", "model-context-protocol"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "mcp>=1.2.0,<2",
+    "python-jira-plus>=3.2.0,<4",
+    "pydantic-settings>=2.13.1",
+    "custom-python-logger>=4.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pre-commit>=4.5.0",
+    "pytest>=9.0.2",
+    "pytest-asyncio>=0.24.0",
+    "python-base-toolkit>=1.1.2",
+]
+
+[project.scripts]
+python-jira-plus-mcp = "jira_plus_mcp.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/aviz92/python-jira-plus-mcp"
+Repository = "https://github.com/aviz92/python-jira-plus-mcp"
+Issues = "https://github.com/aviz92/python-jira-plus-mcp/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["jira_plus_mcp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = ["integration: needs a real Jira instance (JIRA_* env vars)"]
+addopts = "-m 'not integration'"

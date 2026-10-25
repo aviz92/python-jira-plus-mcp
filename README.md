@@ -1,53 +1,47 @@
-# 🧱 Python Jira Plus MCP Service
-This repository contains the Python implementation of the Jira Plus MCP (Model Context Protocol) Service. <br>
-This service is designed to facilitate seamless integration between Jira and various MCP-compatible tools, enhancing project management capabilities.
+# python-jira-plus-mcp
 
----
+MCP server for Jira (Cloud and Data Center), built on [python-jira-plus](https://github.com/aviz92/python-jira-plus).
 
-## 🚀 Features
-- **Get server version**: Retrieve the current version of the Jira server.
-- **Get issue details**: Fetch detailed information about specific Jira issues.
-- **Create and update issues**: Programmatically create new issues or update existing ones.
-- **Search issues**: Perform advanced searches to find issues based on various criteria.
-- **User management**: Manage Jira users, including creating, updating, and deleting user accounts.
-- **Project management**: Create and manage Jira projects with ease.
-- **Custom field handling**: Work with custom fields in Jira issues.
+## Run
 
-## Connecting to Claude Desktop
-1. clone this repository and build the Docker image with the following command:
-    ```bash
-      docker build -t jira-plus-mcp .
-    ```
+```bash
+uvx python-jira-plus-mcp
+```
 
-2. add the following json configuration to your Claude Desktop setup:
+Configure through environment variables (see `env.template`). The server is **read-only by default**:
+write tools are not registered unless `JIRA_MCP_READ_ONLY=false`.
+
+## Claude Code / Desktop
+
 ```json
 {
   "mcpServers": {
-    "jira-plus-service": {
-      "command": "docker",
-      "args": [
-        "run", "--rm",
-        "-e", "BASE_URL=<your_jira_instance_url>",
-        "-e", "JIRA_USERNAME=<your_jira_username>",
-        "-e", "JIRA_TOKEN=<your_jira_api_token>",
-        "-i", "jira-plus-mcp"
-      ]
+    "jira": {
+      "command": "uvx",
+      "args": ["python-jira-plus-mcp"],
+      "env": {
+        "JIRA_BASE_URL": "instance.atlassian.net",
+        "JIRA_USER_NAME": "you@example.com",
+        "JIRA_TOKEN": "..."
+      }
     }
   }
 }
 ```
 
----
+## Tools
 
-## 🤝 Contributing
-If you have a helpful tool, pattern, or improvement to suggest:
-Fork the repo <br>
-Create a new branch <br>
-Submit a pull request <br>
-I welcome additions that promote clean, productive, and maintainable development. <br>
+Always on: `jira_get_issue`, `jira_search_issues`, `jira_get_create_fields`, `jira_get_allowed_values`, `jira_find_user` (Cloud only).
 
----
+With `JIRA_MCP_READ_ONLY=false`: `jira_get_transitions`, `jira_create_issue`, `jira_update_issue`, `jira_add_comment`, `jira_transition_issue`, `jira_link_issues`.
 
-## 🙏 Thanks
-Thanks for exploring this repository! <br>
-Happy coding! <br>
+With `JIRA_MCP_ENABLE_DELETE=true` as well: `jira_delete_issue`.
+
+`upload_attachment` is not exposed: a local file path means nothing across the MCP boundary.
+
+## Development
+
+```bash
+uv sync --extra dev
+uv run pytest
+```

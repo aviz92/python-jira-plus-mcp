@@ -1,9 +1,0 @@
-custom-python-logger
-fastapi>=0.120.4
-mcp[cli]>=1.20.0
-pydantic>=2.12.3
-python-dotenv>=1.2.1
-requests>=2.32.5
-httpx
-python-jira-plus==2.0.1
-jira
