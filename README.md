@@ -1,6 +1,6 @@
 # python-jira-plus-mcp
 
-An MCP server that lets Claude, and any other MCP client, work with Jira Cloud and Jira Data Center:
+An MCP server that lets any MCP client, work with Jira Cloud and Jira Data Center:
 search and read issues, then optionally create, update, comment, transition, link and delete them.
 
 It is a thin layer over [python-jira-plus](https://github.com/aviz92/python-jira-plus), which does the Jira work
@@ -34,7 +34,10 @@ Add the server to `claude_desktop_config.json`, then restart the app:
       "env": {
         "JIRA_BASE_URL": "your-site.atlassian.net",
         "JIRA_USER_NAME": "you@example.com",
-        "JIRA_TOKEN": "your-api-token"
+        "JIRA_TOKEN": "your-api-token",
+        "JIRA_DEPLOYMENT": "cloud",
+        "JIRA_MCP_READ_ONLY": "false",
+        "JIRA_MCP_ENABLE_DELETE": "true"
       }
     }
   }
@@ -45,18 +48,6 @@ Add the server to `claude_desktop_config.json`, then restart the app:
 - With `@main`, every restart of the app picks up the latest commit on `main`. To stay on one version,
   pin a tag instead, e.g. `@v0.1.0`.
 - The token lives only in this local file. Never commit it.
-
-### Claude Code
-
-```bash
-claude mcp add jira \
-  -e JIRA_BASE_URL=your-site.atlassian.net \
-  -e JIRA_USER_NAME=you@example.com \
-  -e JIRA_TOKEN=your-api-token \
-  -- uvx --from git+https://github.com/aviz92/python-jira-plus-mcp@main python-jira-plus-mcp
-```
-
-The server starts **read-only**. To let the model change issues, see [Enabling writes](#enabling-writes).
 
 ## Authentication
 
