@@ -2,13 +2,23 @@ from collections.abc import Iterator
 from unittest.mock import MagicMock, patch
 
 import pytest
-from python_jira_plus import JiraCloud
 
 
-@pytest.fixture(name="real_client")
-def real_client_fixture() -> Iterator[JiraCloud]:
-    """A real JiraCloud over a mocked jira-python connection, for behaviour the library itself now owns."""
+@pytest.fixture(name="client")
+def client_fixture() -> Iterator[MagicMock]:
+    """A fully mocked library client, for what the MCP itself does with results."""
+    client = MagicMock()
+    with patch("jira_plus_mcp.client.build_client", return_value=client):
+        yield client
+
+
+@pytest.fixture(name="jira")
+def jira_fixture() -> Iterator[MagicMock]:
+    """The real library client over a mocked jira-python connection, for behaviour the library owns.
+
+    Build the server with `tests.tools.common.make_settings(...)` so the client has credentials.
+    """
     jira = MagicMock()
     jira.server_info.return_value = {"versionNumbers": [1001, 0, 0]}
     with patch("python_jira_plus.jira_cloud.JIRA", return_value=jira):
-        yield JiraCloud(base_url="https://acme.atlassian.net", jira_username="u", jira_token="t", raise_on_error=True)
+        yield jira

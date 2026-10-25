@@ -1,26 +1,7 @@
 from typing import Any
 
 from pydantic import BaseModel
-
-
-class IssueSummary(BaseModel):
-    key: str
-    summary: str | None = None
-    status: str | None = None
-    issue_type: str | None = None
-    priority: str | None = None
-    assignee: str | None = None
-    updated: str | None = None
-
-
-class IssueDetail(IssueSummary):
-    project: str | None = None
-    reporter: str | None = None
-    created: str | None = None
-    labels: list[str] = []
-    resolution: str | None = None
-    parent: str | None = None
-    description: str | None = None
+from python_jira_plus import IssueSummary
 
 
 class SearchResult(BaseModel):

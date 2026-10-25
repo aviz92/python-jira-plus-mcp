@@ -4,9 +4,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 from jira import JIRAError
 from mcp.server.fastmcp.exceptions import ToolError
+from python_jira_plus import ProjectNotAllowedError
 
 from jira_plus_mcp.__main__ import main
-from jira_plus_mcp.errors import to_tool_error, tool_errors, validate_issue_key
+from jira_plus_mcp.errors import to_tool_error, tool_errors
 from jira_plus_mcp.settings import Settings, Transport
 
 
@@ -34,8 +35,9 @@ async def test_tool_errors_wraps_exceptions() -> None:
         await boom()
 
 
-def test_validate_issue_key_normalises_case_and_whitespace() -> None:
-    assert validate_issue_key(" proj-12 ") == "PROJ-12"
+def test_project_not_allowed_keeps_library_message() -> None:
+    err = to_tool_error(ProjectNotAllowedError("Project 'NO' is not allowed. Allowed projects: ['OK']"))
+    assert str(err) == "Project 'NO' is not allowed. Allowed projects: ['OK']"
 
 
 @pytest.mark.parametrize("transport", list(Transport))

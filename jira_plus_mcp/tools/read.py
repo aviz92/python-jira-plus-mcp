@@ -1,57 +1,27 @@
-import re
+from collections.abc import Callable
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
-from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
-from python_jira_plus import BASIC_FIELDS
+from python_jira_plus import BASIC_FIELDS, IssueDetail, simplify_issue
+from python_jira_plus.jira_base import JiraBase
 from python_jira_plus.jira_cloud import JiraCloud
 
-from jira_plus_mcp.client import get_client
-from jira_plus_mcp.errors import check_project_allowed, tool_errors, validate_issue_key
-from jira_plus_mcp.formatters import format_allowed_values, format_detail, format_fields_metadata, format_summary
-from jira_plus_mcp.models import AllowedValues, FieldMeta, IssueDetail, LinkType, SearchResult
+from jira_plus_mcp.errors import tool_errors
+from jira_plus_mcp.formatters import cap_create_fields, format_allowed_values
+from jira_plus_mcp.models import AllowedValues, FieldMeta, LinkType, SearchResult
 from jira_plus_mcp.settings import Deployment, Settings
 
 READ_ONLY = ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=True)
 DEFAULT_SEARCH_LIMIT = 20
-ORDER_BY = re.compile(r"\border\s+by\b", re.IGNORECASE)
 
 
-def scope_jql(settings: Settings, jql: str) -> str:
-    """Restrict a JQL query to the allowed projects, keeping any ORDER BY clause outside the filter."""
-    if not (allowed := settings.jira_mcp_allowed_projects):
-        return jql
-    parts = ORDER_BY.split(jql, maxsplit=1)
-    where = parts[0].strip()
-    scoped = f"project in ({', '.join(allowed)})" + (f" AND ({where})" if where else "")
-    return f"{scoped} ORDER BY {parts[1].strip()}" if len(parts) > 1 else scoped
-
-
-def _in_allowed_project(settings: Settings, raw: dict[str, Any]) -> bool:
-    """Enforce the allowlist on the server's own output; the JQL wrapper alone can be escaped with parentheses."""
-    allowed = settings.jira_mcp_allowed_projects
-    project = ((raw.get("fields") or {}).get("project") or {}).get("key", "")
-    return not allowed or project.upper() in allowed
-
-
-def project_of(key: str) -> str:
-    return key.rsplit("-", 1)[0]
-
-
-def register_read_tools(mcp: FastMCP, settings: Settings) -> None:
+def register_read_tools(mcp: FastMCP, settings: Settings, get_client: Callable[[], JiraBase]) -> None:
     @mcp.tool(name="jira_get_issue", annotations=READ_ONLY)
     @tool_errors
     def jira_get_issue(issue_key: str) -> IssueDetail:
         """Get one Jira issue by key (e.g. PROJ-123) with its core fields."""
-        issue_key = validate_issue_key(issue_key)
-        check_project_allowed(settings, project_of(issue_key))
-        raw = get_client().get_issue_by_key(key=issue_key, specific_fields=BASIC_FIELDS, json_result=True)
-        if raw is None:
-            raise ToolError(f"Issue '{issue_key}' not found or not accessible")
-        if not _in_allowed_project(settings, raw):
-            raise ToolError(f"Issue '{issue_key}' is not in an allowed project")
-        return format_detail(raw)
+        return simplify_issue(get_client().get_issue_by_key(issue_key, specific_fields=BASIC_FIELDS), detail=True)
 
     @mcp.tool(name="jira_search_issues", annotations=READ_ONLY)
     @tool_errors
@@ -59,30 +29,23 @@ def register_read_tools(mcp: FastMCP, settings: Settings) -> None:
         """Search issues with JQL. Returns compact summaries; `truncated` is true if more matched than `limit`."""
         limit = min(max(limit, 1), settings.jira_mcp_max_results)
         # one extra issue tells us whether more matched than `limit`
-        raw_issues = get_client().get_objects_by_query(
-            scope_jql(settings, jql),
-            limit=limit + 1,
-            max_results=limit + 1,
-            specific_fields=BASIC_FIELDS,
-            json_result=True,
+        found = get_client().get_objects_by_query(
+            jql, limit=limit + 1, max_results=limit + 1, specific_fields=BASIC_FIELDS, json_result=True
         )
-        visible = [raw for raw in raw_issues if _in_allowed_project(settings, raw)]
-        issues = [format_summary(raw) for raw in visible[:limit]]
-        # with an allowlist, issues hidden from the fetched batch can make `truncated` miss further matches
-        return SearchResult(issues=issues, returned=len(issues), truncated=len(visible) > limit)
+        issues = [simplify_issue(raw) for raw in found[:limit]]
+        # with an allowlist, issues the library filters out can make `truncated` miss further matches
+        return SearchResult(issues=issues, returned=len(issues), truncated=len(found) > limit)
 
     @mcp.tool(name="jira_get_create_fields", annotations=READ_ONLY)
     @tool_errors
     def jira_get_create_fields(project_key: str, issue_type: str) -> list[FieldMeta]:
         """List fields for creating an issue (required first, with allowed values). Call before jira_create_issue."""
-        check_project_allowed(settings, project_key)
-        return format_fields_metadata(get_client().get_project_fields_metadata(project_key, issue_type))
+        return cap_create_fields(get_client().get_create_fields(project_key, issue_type))
 
     @mcp.tool(name="jira_get_allowed_values", annotations=READ_ONLY)
     @tool_errors
     def jira_get_allowed_values(project_key: str, issue_type: str, field_id_or_name: str) -> AllowedValues:
         """Get the allowed values of one field for a project and issue type (`truncated` if the list was cut)."""
-        check_project_allowed(settings, project_key)
         return format_allowed_values(get_client().get_allowed_values(project_key, issue_type, field_id_or_name))
 
     @mcp.tool(name="jira_get_link_types", annotations=READ_ONLY)
