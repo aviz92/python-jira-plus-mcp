@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     jira_mcp_enable_delete: bool = False
     jira_mcp_allowed_projects: Annotated[list[str], NoDecode] = Field(default_factory=list)
     jira_mcp_transport: Transport = Transport.STDIO
+    jira_mcp_host: str = "127.0.0.1"
+    jira_mcp_port: int = Field(default=8000, ge=1, le=65535)
     jira_mcp_max_results: int = Field(default=DEFAULT_MAX_RESULTS, ge=1)
 
     @field_validator("jira_mcp_allowed_projects", mode="before")

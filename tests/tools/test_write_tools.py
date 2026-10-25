@@ -141,11 +141,47 @@ async def test_transition_library_false_becomes_error(client: MagicMock) -> None
         )
 
 
-async def test_link_issues_maps_parameters(client: MagicMock) -> None:
+def link_type(name: str) -> MagicMock:
+    link = MagicMock()
+    link.name = name
+    return link
+
+
+async def test_link_issues_maps_parameters_with_exact_type_name(client: MagicMock) -> None:
+    client.jira_client.issue_link_types.return_value = [link_type("Blocks")]
     client.create_link.return_value = True
-    args = {"inward_issue_key": "P-1", "outward_issue_key": "P-2", "link_type": "Blocks"}
+    args = {"inward_issue_key": "P-1", "outward_issue_key": "P-2", "link_type": "blocks"}
     await create_server(Settings(**WRITABLE)).call_tool("jira_link_issues", args)
     client.create_link.assert_called_once_with("P-1", "Blocks", "P-2")
+
+
+async def test_link_unknown_type_lists_available(client: MagicMock) -> None:
+    client.jira_client.issue_link_types.return_value = [link_type("Blocks"), link_type("Relates")]
+    args = {"inward_issue_key": "P-1", "outward_issue_key": "P-2", "link_type": "Nope"}
+    with pytest.raises(ToolError, match="Available: Blocks, Relates"):
+        await create_server(Settings(**WRITABLE)).call_tool("jira_link_issues", args)
+    client.create_link.assert_not_called()
+
+
+async def test_create_rejects_project_override_in_custom_fields(client: MagicMock) -> None:
+    args = {
+        "project_key": "OK",
+        "summary": "s",
+        "description": "d",
+        "issue_type": "Bug",
+        "custom_fields": {"project": {"key": "SEC"}},
+    }
+    with pytest.raises(ToolError, match="cannot be set here"):
+        await create_server(Settings(**WRITABLE)).call_tool("jira_create_issue", args)
+    client.create_issue.assert_not_called()
+
+
+async def test_update_rejects_issuetype_change(client: MagicMock) -> None:
+    with pytest.raises(ToolError, match="cannot be set here"):
+        await create_server(Settings(**WRITABLE)).call_tool(
+            "jira_update_issue", {"issue_key": "P-1", "fields_to_update": {"issuetype": {"name": "Epic"}}}
+        )
+    client.update_issue.assert_not_called()
 
 
 async def test_link_checks_both_keys_against_allowlist(client: MagicMock) -> None:

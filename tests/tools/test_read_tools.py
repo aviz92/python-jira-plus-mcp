@@ -27,6 +27,7 @@ async def test_tool_names_prefixed_and_read_only() -> None:
         "jira_search_issues",
         "jira_get_create_fields",
         "jira_get_allowed_values",
+        "jira_get_link_types",
         "jira_find_user",
     }
     assert all(t.annotations.readOnlyHint for t in tools)
@@ -103,7 +104,7 @@ async def test_get_allowed_values_returns_values(client: MagicMock) -> None:
     _, result = await create_server(Settings()).call_tool(
         "jira_get_allowed_values", {"project_key": "P", "issue_type": "Bug", "field_id_or_name": "priority"}
     )
-    assert result["result"] == [{"name": "High"}]
+    assert result == {"values": [{"name": "High"}], "total": 1, "truncated": False}
 
 
 async def test_get_allowed_values_none_becomes_empty_list(client: MagicMock) -> None:
@@ -111,7 +112,7 @@ async def test_get_allowed_values_none_becomes_empty_list(client: MagicMock) -> 
     _, result = await create_server(Settings()).call_tool(
         "jira_get_allowed_values", {"project_key": "P", "issue_type": "Bug", "field_id_or_name": "summary"}
     )
-    assert result["result"] == []
+    assert result == {"values": [], "total": 0, "truncated": False}
 
 
 async def test_find_user_returns_only_safe_fields(client: MagicMock) -> None:
@@ -151,3 +152,22 @@ async def test_search_on_premise_uses_search_issues_and_reports_truncation(clien
     assert client.jira_client.search_issues.call_args.kwargs["maxResults"] == 3
     assert result["returned"] == 2
     assert result["truncated"] is True
+
+
+async def test_allowed_values_trimmed_and_flagged_when_cut(client: MagicMock) -> None:
+    client.get_allowed_values.return_value = [
+        {"id": str(i), "name": f"v{i}", "self": "http://noise"} for i in range(60)
+    ]
+    _, result = await create_server(Settings()).call_tool(
+        "jira_get_allowed_values", {"project_key": "P", "issue_type": "Bug", "field_id_or_name": "x"}
+    )
+    assert (result["total"], len(result["values"]), result["truncated"]) == (60, 50, True)
+    assert "self" not in result["values"][0]
+
+
+async def test_get_link_types(client: MagicMock) -> None:
+    link = MagicMock(inward="is blocked by", outward="blocks")
+    link.name = "Blocks"
+    client.jira_client.issue_link_types.return_value = [link]
+    _, result = await create_server(Settings()).call_tool("jira_get_link_types", {})
+    assert result["result"] == [{"name": "Blocks", "inward": "is blocked by", "outward": "blocks"}]
