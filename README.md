@@ -55,9 +55,9 @@ With `JIRA_MCP_ENABLE_DELETE=true` as well: `jira_delete_issue`.
 
 ## Restricting projects
 
-`JIRA_MCP_ALLOWED_PROJECTS=PROJ1,PROJ2` limits every tool to those projects. It is passed to python-jira-plus
-as `allowed_projects`, which enforces it on every call: searches are scoped and filtered, and issue operations
-check the issue's current project, so moved issues are covered too.
+`JIRA_MCP_ALLOWED_PROJECTS=PROJ1,PROJ2` limits every tool to those projects. Searches are scoped in JQL and
+the results filtered, and issue operations check the issue's current project, so moved issues are covered too
+(at the cost of one extra request per issue operation while the allowlist is set).
 
 ## HTTP transport (experimental)
 

@@ -7,6 +7,7 @@ from python_jira_plus import BASIC_FIELDS
 from python_jira_plus.jira_base import JiraBase
 from python_jira_plus.jira_cloud import JiraCloud
 
+from jira_plus_mcp.allowlist import check_key_prefix, check_project_allowed, in_allowed_project, project_of, scope_jql
 from jira_plus_mcp.errors import tool_errors
 from jira_plus_mcp.formatters import cap_create_fields, format_allowed_values, format_detail, format_summary
 from jira_plus_mcp.models import AllowedValues, FieldMeta, IssueDetail, LinkType, SearchResult
@@ -21,7 +22,10 @@ def register_read_tools(mcp: FastMCP, settings: Settings, get_client: Callable[[
     @tool_errors
     def jira_get_issue(issue_key: str) -> IssueDetail:
         """Get one Jira issue by key (e.g. PROJ-123) with its core fields."""
-        return format_detail(get_client().get_issue_by_key(issue_key, specific_fields=BASIC_FIELDS))
+        check_key_prefix(settings, issue_key)
+        raw = get_client().get_issue_by_key(issue_key, specific_fields=BASIC_FIELDS)
+        check_project_allowed(settings, project_of(raw))  # its current project: moved issues keep old keys
+        return format_detail(raw)
 
     @mcp.tool(name="jira_search_issues", annotations=READ_ONLY)
     @tool_errors
@@ -30,22 +34,29 @@ def register_read_tools(mcp: FastMCP, settings: Settings, get_client: Callable[[
         limit = min(max(limit, 1), settings.jira_mcp_max_results)
         # one extra issue tells us whether more matched than `limit`
         found = get_client().get_objects_by_query(
-            jql, limit=limit + 1, max_results=limit + 1, specific_fields=BASIC_FIELDS, json_result=True
+            scope_jql(settings, jql),
+            limit=limit + 1,
+            max_results=limit + 1,
+            specific_fields=BASIC_FIELDS,
+            json_result=True,
         )
-        issues = [format_summary(raw) for raw in found[:limit]]
-        # with an allowlist, issues the library filters out can make `truncated` miss further matches
-        return SearchResult(issues=issues, returned=len(issues), truncated=len(found) > limit)
+        visible = [raw for raw in found if in_allowed_project(settings, raw)]
+        issues = [format_summary(raw) for raw in visible[:limit]]
+        # with an allowlist, issues hidden from the fetched batch can make `truncated` miss further matches
+        return SearchResult(issues=issues, returned=len(issues), truncated=len(visible) > limit)
 
     @mcp.tool(name="jira_get_create_fields", annotations=READ_ONLY)
     @tool_errors
     def jira_get_create_fields(project_key: str, issue_type: str) -> list[FieldMeta]:
         """List fields for creating an issue (required first, with allowed values). Call before jira_create_issue."""
+        check_project_allowed(settings, project_key)
         return cap_create_fields(get_client().get_create_fields(project_key, issue_type))
 
     @mcp.tool(name="jira_get_allowed_values", annotations=READ_ONLY)
     @tool_errors
     def jira_get_allowed_values(project_key: str, issue_type: str, field_id_or_name: str) -> AllowedValues:
         """Get the allowed values of one field for a project and issue type (`truncated` if the list was cut)."""
+        check_project_allowed(settings, project_key)
         return format_allowed_values(get_client().get_allowed_values(project_key, issue_type, field_id_or_name))
 
     @mcp.tool(name="jira_get_link_types", annotations=READ_ONLY)

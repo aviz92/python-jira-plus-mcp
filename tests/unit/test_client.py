@@ -31,14 +31,9 @@ async def call_with(settings: Settings) -> None:
 
 def test_build_client_cloud() -> None:
     with patch("jira_plus_mcp.client.JiraCloud") as cloud:
-        build_client(make_settings(jira_mcp_allowed_projects="ok"))
+        build_client(make_settings())
     cloud.assert_called_once_with(
-        base_url="https://acme.atlassian.net",
-        jira_username="u",
-        jira_token="t",
-        verify_ssl=True,
-        raise_on_error=True,
-        allowed_projects=["OK"],
+        base_url="https://acme.atlassian.net", jira_username="u", jira_token="t", verify_ssl=True, raise_on_error=True
     )
 
 

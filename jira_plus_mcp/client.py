@@ -8,14 +8,13 @@ from jira_plus_mcp.settings import Deployment, Settings
 
 
 def build_client(settings: Settings) -> JiraBase:
-    """The library parses the URL, checks credentials per auth mode and enforces the project allowlist."""
+    """The library parses the URL scheme and checks credentials per auth mode, raising ValueError on a gap."""
     common = {
         "base_url": settings.jira_base_url,
         "jira_username": settings.jira_user_name,
         "jira_token": settings.jira_token.get_secret_value(),
         "verify_ssl": settings.jira_verify_ssl,
         "raise_on_error": True,
-        "allowed_projects": settings.jira_mcp_allowed_projects,
     }
     if settings.jira_deployment is Deployment.CLOUD:
         return JiraCloud(**common)

@@ -5,7 +5,6 @@ from typing import Any
 import anyio.to_thread
 from jira import JIRAError
 from mcp.server.fastmcp.exceptions import ToolError
-from python_jira_plus import ProjectNotAllowedError
 
 
 def to_tool_error(err: Exception) -> ToolError:
@@ -14,8 +13,7 @@ def to_tool_error(err: Exception) -> ToolError:
         return err
     if isinstance(err, JIRAError):
         return ToolError(f"Jira error {err.status_code}: {err.text or err}")
-    # validation, name lookups, invalid issue keys, missing credentials, and the project allowlist
-    if isinstance(err, ValueError | ProjectNotAllowedError):
+    if isinstance(err, ValueError):  # python-jira-plus validation, invalid issue keys, missing credentials
         return ToolError(str(err))
     return ToolError(f"Unexpected error: {type(err).__name__}: {err}")
 
