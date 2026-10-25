@@ -43,13 +43,25 @@ def test_build_client_on_premise_passes_sso_and_ssl() -> None:
     assert kwargs["verify_ssl"] is False
 
 
-def test_missing_credentials_named_in_error() -> None:
-    with pytest.raises(ToolError, match="JIRA_BASE_URL, JIRA_USER_NAME, JIRA_TOKEN not set"):
-        build_client(Settings(jira_base_url="", jira_user_name="", jira_token=SecretStr("")))
-
-
-def test_sso_does_not_require_username_or_token() -> None:
-    settings = make_settings(jira_deployment=Deployment.ON_PREMISE, jira_sso=True, jira_user_name="")
+def test_on_prem_pat_needs_token_but_not_username() -> None:
+    settings = make_settings(jira_deployment=Deployment.ON_PREMISE, jira_user_name="")
     with patch("jira_plus_mcp.client.JiraOnPremise") as on_prem:
         build_client(settings)
     on_prem.assert_called_once()
+
+
+def test_on_prem_without_token_rejected() -> None:
+    settings = make_settings(jira_deployment=Deployment.ON_PREMISE, jira_token=SecretStr(""))
+    with pytest.raises(ToolError, match="JIRA_TOKEN not set"):
+        build_client(settings)
+
+
+def test_on_prem_sso_requires_username_and_token() -> None:
+    settings = make_settings(jira_deployment=Deployment.ON_PREMISE, jira_sso=True, jira_user_name="")
+    with pytest.raises(ToolError, match="JIRA_USER_NAME not set"):
+        build_client(settings)
+
+
+def test_missing_credentials_named_in_error() -> None:
+    with pytest.raises(ToolError, match="JIRA_BASE_URL, JIRA_TOKEN, JIRA_USER_NAME not set"):
+        build_client(Settings(jira_base_url="", jira_user_name="", jira_token=SecretStr("")))
