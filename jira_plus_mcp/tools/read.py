@@ -59,10 +59,11 @@ def register_read_tools(mcp: FastMCP, settings: Settings) -> None:
     def jira_search_issues(jql: str, limit: int = DEFAULT_SEARCH_LIMIT) -> SearchResult:
         """Search issues with JQL. Returns compact summaries; `truncated` is true if more matched than `limit`."""
         limit = min(max(limit, 1), settings.jira_mcp_max_results)
-        found = search_page(settings, scope_jql(settings, jql), BASIC_FIELDS, limit)
-        visible = [raw for raw in found if _in_allowed_project(settings, raw)]
+        page = search_page(settings, scope_jql(settings, jql), BASIC_FIELDS, limit)
+        visible = [raw for raw in page.issues if _in_allowed_project(settings, raw)]
         issues = [format_summary(raw) for raw in visible[:limit]]
-        return SearchResult(issues=issues, returned=len(issues), truncated=len(visible) > limit)
+        # with an allowlist, hidden issues in the fetched page can make `truncated` slightly conservative
+        return SearchResult(issues=issues, returned=len(issues), truncated=page.has_more or len(visible) > limit)
 
     @mcp.tool(name="jira_get_create_fields", annotations=READ_ONLY)
     @tool_errors

@@ -47,7 +47,7 @@ def register_write_tools(mcp: FastMCP, settings: Settings) -> None:
 
     @mcp.tool(name="jira_create_issue", annotations=WRITE)
     @tool_errors
-    def jira_create_issue(
+    def jira_create_issue(  # pylint: disable=too-many-positional-arguments
         project_key: str,
         summary: str,
         description: str,

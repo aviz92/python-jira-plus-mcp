@@ -171,3 +171,22 @@ async def test_get_link_types(client: MagicMock) -> None:
     client.jira_client.issue_link_types.return_value = [link]
     _, result = await create_server(Settings()).call_tool("jira_get_link_types", {})
     assert result["result"] == [{"name": "Blocks", "inward": "is blocked by", "outward": "blocks"}]
+
+
+async def test_cloud_short_page_not_last_is_truncated(client: MagicMock) -> None:
+    client.jira_client.enhanced_search_issues.return_value = {"issues": [RAW] * 10, "isLast": False}
+    _, result = await create_server(Settings()).call_tool("jira_search_issues", {"jql": "x", "limit": 20})
+    assert (result["returned"], result["truncated"]) == (10, True)
+
+
+async def test_cloud_last_page_not_truncated(client: MagicMock) -> None:
+    client.jira_client.enhanced_search_issues.return_value = {"issues": [RAW], "isLast": True}
+    _, result = await create_server(Settings()).call_tool("jira_search_issues", {"jql": "x"})
+    assert result["truncated"] is False
+
+
+async def test_on_prem_total_drives_truncated(client: MagicMock) -> None:
+    client.jira_client.search_issues.return_value = {"issues": [RAW] * 5, "total": 500}
+    server = create_server(Settings(jira_deployment=Deployment.ON_PREMISE))
+    _, result = await server.call_tool("jira_search_issues", {"jql": "x", "limit": 20})
+    assert (result["returned"], result["truncated"]) == (5, True)

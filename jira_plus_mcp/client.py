@@ -15,9 +15,10 @@ def _split_scheme(base_url: str) -> tuple[str, UrlScheme]:
 
 
 def _check_required(settings: Settings) -> None:
-    required = {"JIRA_BASE_URL": settings.jira_base_url}
-    if not settings.jira_sso:
-        required |= {"JIRA_USER_NAME": settings.jira_user_name, "JIRA_TOKEN": settings.jira_token.get_secret_value()}
+    required = {"JIRA_BASE_URL": settings.jira_base_url, "JIRA_TOKEN": settings.jira_token.get_secret_value()}
+    # Cloud and on-prem SSO use basic auth (username + token); on-prem without SSO uses the token alone
+    if settings.jira_deployment is Deployment.CLOUD or settings.jira_sso:
+        required["JIRA_USER_NAME"] = settings.jira_user_name
     if missing := [name for name, value in required.items() if not value]:
         raise ToolError(f"{', '.join(missing)} not set. Configure the server's environment and restart it")
 
